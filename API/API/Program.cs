@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using API.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -30,12 +31,10 @@ app.MapGet("/api/produto/listar",
 });
 
 //GET: http://localhost:5225/api/produto/buscar/id_do_produto
-app.MapGet("/api/produto/buscar/{id}", (string id,
-    [FromServices] AppDataContext ctx) =>
-{
+app.MapGet("/api/produto/buscar/{id}", ([FromRoute] string id, [FromServices] AppDataContext ctx) =>
+{   
     //Expressão lambda em c#
-    Produto? produto =
-        ctx.Produtos.FirstOrDefault(x => x.Id == id);
+    Produto? produto = ctx.Produtos.FirstOrDefault(x => x.Id == id);
     if (produto is null)
     {
         return Results.NotFound("Produto não encontrado!");
@@ -44,14 +43,62 @@ app.MapGet("/api/produto/buscar/{id}", (string id,
 });
 
 //POST: http://localhost:5225/api/produto/cadastrar
-app.MapPost("/api/produto/cadastrar",
-    ([FromBody] Produto produto,
-    [FromServices] AppDataContext ctx) =>
+app.MapPost("/api/produto/cadastrar", ([FromBody] Produto produto, [FromServices] AppDataContext ctx) =>
 {
     //Adicionar o produto dentro do banco de dados
-    ctx.Produtos.Add(produto);
+
+    // validacao dos atributos do produto
+
+    List<ValidationResult> erros = new List<ValidationResult>();
+
+    if(!Validator.TryValidateObject(produto, new ValidationContext(produto), erros, true)){
+        return Results.BadRequest(erros);
+    }
+    //Regra de negocio - nao permitir produtos com o mesmo nome
+
+
+    Produto? produtoBuscado = ctx.Produtos.FirstOrDefault(x => x.Nome == produto.Nome);
+
+    if(produtoBuscado == null){
+        ctx.Produtos.Add(produto);
+        ctx.SaveChanges();
+        return Results.Created("", produto);
+    }
+        return Results.BadRequest("ja tem esse ai man");
+   
+});
+
+
+//DELETE: http://localhost:5225/api/produto/deletar/id
+app.MapDelete("/api/produto/deletar/{id}", ([FromRoute] string id, [FromServices] AppDataContext ctx) => 
+{
+    Produto? produto = ctx.Produtos.Find(id);
+    if (produto is null)
+    {
+        return Results.NotFound("Produto não encontrado!");
+    }
+    ctx.Produtos.Remove(produto);
     ctx.SaveChanges();
-    return Results.Created("", produto);
+    return Results.Ok("produto deletado!");
+});
+
+//PUT: http://localhost:5225/api/produto/alterar/id
+app.MapPut("/api/produto/alterar/{id}", ([FromRoute] string id,[FromBody] Produto produtoAlterado,[FromServices] AppDataContext ctx) => 
+{
+    Produto? produto = ctx.Produtos.Find(id);
+    if (produto is null)
+    {
+        return Results.NotFound("Produto não encontrado!");
+    }
+
+    produto.Nome = produtoAlterado.Nome;
+    produto.Descricao = produtoAlterado.Descricao;
+    produto.Quantidade = produtoAlterado.Quantidade;
+    produto.Valor = produtoAlterado.Valor;
+
+    ctx.Produtos.Update(produto);
+    ctx.SaveChanges();
+    return Results.Ok("produto atualized!");
 });
 
 app.Run();
