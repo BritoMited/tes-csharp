@@ -6,13 +6,15 @@ var builder = WebApplication.CreateBuilder(args);
 //Registrar o serviço de banco de dados na aplicação
 builder.Services.AddDbContext<AppDataContext>();
 
-var app = builder.Build();
+builder.Services.AddCors(options =>
+    options.AddPolicy("Acesso total",
+    configs => configs
+    .AllowAnyOrigin()
+    .AllowAnyHeader()
+    .AllowAnyMethod())
+);
 
-List<Produto> produtos = new List<Produto>();
-produtos.Add(new Produto("Celular", "IOS", 4000));
-produtos.Add(new Produto("Celular", "Android", 2500));
-produtos.Add(new Produto("Televisão", "LG", 2000));
-produtos.Add(new Produto("Notebook", "Avell", 5000));
+var app = builder.Build();
 
 //EndPoints - Funcionalidades
 //GET: http://localhost:5225/
@@ -54,5 +56,6 @@ app.MapPost("/api/produto/cadastrar",
     return Results.Created("", produto);
 });
 
+app.UseCors("Acesso total");
 app.Run();
 
